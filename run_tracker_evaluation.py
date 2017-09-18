@@ -116,7 +116,7 @@ def _compile_results(gt, bboxes, dist_threshold):
 
 def _init_video(env, evaluation, video):
     video_folder = os.path.join(env.root_dataset, evaluation.dataset, video)
-    frame_name_list = [f for f in os.listdir(video_folder) if f.endswith(".jpg")]
+    frame_name_list = [f for f in os.listdir(video_folder) if f.endswith(".jpg") or f.endswith(".png")]
     frame_name_list = [os.path.join(env.root_dataset, evaluation.dataset, video, '') + s for s in frame_name_list]
     frame_name_list.sort()
     with Image.open(frame_name_list[0]) as img:
@@ -125,6 +125,7 @@ def _init_video(env, evaluation, video):
 
     # read the initialization from ground truth
     gt_file = os.path.join(video_folder, 'groundtruth.txt')
+    import ipdb; ipdb.set_trace()
     gt = np.genfromtxt(gt_file, delimiter=',')
     n_frames = len(frame_name_list)
     assert n_frames == len(gt), 'Number of frames and number of GT lines should be equal.'
