@@ -5,3 +5,5 @@ pretrained/
 *.swp
 notebooks/*
 .idea
+*.sh
+
