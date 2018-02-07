@@ -114,7 +114,7 @@ def process_track(track_init_details_list):
             if os.path.exists(result_csv_file):
                 # already computed
                 glog.info(vid + ' track idx : %d'%(track_idx) \
-                        + ' : All ready computed')
+                        + ' : Already computed')
                 continue
             else:
                 result_bboxes = result_bboxes_list[present_bboxes_idx]

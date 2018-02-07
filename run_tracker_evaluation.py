@@ -125,7 +125,6 @@ def _init_video(env, evaluation, video):
 
     # read the initialization from ground truth
     gt_file = os.path.join(video_folder, 'groundtruth.txt')
-    import ipdb; ipdb.set_trace()
     gt = np.genfromtxt(gt_file, delimiter=',')
     n_frames = len(frame_name_list)
     assert n_frames == len(gt), 'Number of frames and number of GT lines should be equal.'

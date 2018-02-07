@@ -7,16 +7,12 @@ import glog
 from multiprocessing import Pool
 import shutil
 
-videos_root = '/media/brain/archith/video_analysis/thumos14/subsampled_images_original_fps/'
-detection_data_root = '/media/brain/archith/video_analysis/thumos14/object_detection_results/faster_rcnn_inception_resnet_v2_atrous_coco_11_06_2017/data/'
-tracking_data_root = '/media/brain/archith/video_analysis/thumos14/object_tracking_results_unconsolidated/faster_rcnn_inception_resnet_v2_atrous_coco_11_06_2017/data/'
+videos_root = '/media/brain/archith/video_analysis/thumos14/subsampled_images_original_fps/thumos14'
+detection_data_root = '/media/brain/archith/video_analysis/thumos14/object_detection_results_5.0_fps/faster_rcnn_inception_resnet_v2_atrous_coco_11_06_2017/data/thumos14/'
+tracking_data_root = '/media/ssd1/archith/video_analysis/thumos14/object_tracking_results_5.0_fps_unconsolidated/faster_rcnn_inception_resnet_v2_atrous_coco_11_06_2017/data/thumos14/'
 
 if not os.path.isdir(tracking_data_root):
   os.makedirs(tracking_data_root)
-
-job_file = 'run_tracker_thumos14.sh'
-with open(job_file, 'w') as f:
-  f.write('#!/bin/bash\n')
 
 tracker_job_pkls_root = '/run/shm/archith/video_analysis/thumos14/tracker_jobs'
 if not os.path.isdir(tracker_job_pkls_root):
@@ -29,12 +25,17 @@ if not os.path.isdir(tracking_data_root):
   os.makedirs(tracking_data_root)
 
 
+job_file = 'run_tracker_thumos14.sh'
+with open(job_file, 'w') as f:
+  f.write('#!/bin/bash\n')
 
-dataset = 'validation'
-video_names = os.listdir(os.path.join(videos_root, dataset))
+video_names = os.listdir(videos_root)
 video_names.sort()
-max_track_seq_len = 40
-available_gpus = [0, 1, 2, 3]
+
+video_names = video_names[0:1]
+
+max_track_seq_len = 8
+available_gpus = [0]
 num_gpus = len(available_gpus)
 track_chunk_size = 200
 
@@ -42,14 +43,14 @@ def process_video(vid):
   glog.info(vid)
   vid_det_file = os.path.join(detection_data_root, '%s.csv'%vid)
   vid_det_df = pd.read_csv(vid_det_file, index_col=0)
-  vid_img_root = os.path.join(videos_root, dataset, vid)
-  image_paths = glob(os.path.join(vid_img_root, '*.png'))
+  vid_img_root = os.path.join(videos_root, vid)
+  image_paths = glob(os.path.join(vid_img_root, 'img_*.jpg'))
   image_paths.sort()
   vid_num_frames = len(image_paths)
   det_frame_idxs = vid_det_df['image_idx'].tolist() # frames with detection bbox on them
   X = set(det_frame_idxs); det_frame_idxs = list(X)
   det_frame_idxs.sort()
-  det_frame_idxs = det_frame_idxs[::2] # Subsampling to every 10 frame's detection to speed up
+  det_frame_idxs = det_frame_idxs[::] # Subsampling to every 10 frame's detection to speed up?
 
   result_df = pd.DataFrame(columns=vid_det_df.columns)
   result_df['box_source'] = []
@@ -87,7 +88,6 @@ def process_video(vid):
           track_init_details['track_counter'] = track_counter
           track_init_details['tracking_data_root'] = tracking_data_root
           track_init_details['detection_data_root'] = detection_data_root
-          track_init_details['tracking_data_root'] = tracking_data_root
           track_init_details['frame_width'] = bbox_row['width']
           track_init_details['frame_height'] = bbox_row['height']
           track_init_details['score'] = bbox_row['score']
@@ -96,7 +96,7 @@ def process_video(vid):
           track_init_details_list.append(track_init_details)
           track_counter += 1
 
-  track_init_details_chunks = [track_init_details_list[i:i+track_chunk_size] 
+  track_init_details_chunks = [track_init_details_list[i:i+track_chunk_size]
                               for i in range(0, len(track_init_details_list), 
                               track_chunk_size)]
 
@@ -112,9 +112,12 @@ def process_video(vid):
     
   return video_job_cmds
 
+results = []
+for x in video_names:
+  results.append(process_video(x))
 
-p = Pool(12)
-results = p.map(process_video, [x for x in video_names])
+#p = Pool(12)
+#results = p.map(process_video, [x for x in video_names])
 
 
 all_cmds = []
@@ -124,13 +127,12 @@ for r in results:
 
 for idx, cmd in enumerate(all_cmds):
   cmd = cmd + '--gpu-id=%d'%available_gpus[idx%num_gpus]
-  if (idx+1) % (2*num_gpus) == 0:
+  if (idx+1) % (1*num_gpus) == 0:
     cmd = cmd + '\nwait\n'
   else:
     cmd = cmd + ' &\n'
 
   all_cmds[idx] = cmd      
-  
 
 with open(job_file, 'a') as f:
   f.writelines(all_cmds)
